@@ -2,10 +2,10 @@
   <div class="fixed bottom-6 right-6 z-[100] flex flex-col items-end pointer-events-none font-body">
     <!-- Chat Window -->
     <Transition name="chat-window">
-      <div v-if="isOpen" class="chat-container mb-4 pointer-events-auto shadow-2xl">
-        
+      <div v-if="isOpen" class="chat-container mb-4 pointer-events-auto">
+
         <!-- Header -->
-        <div class="chat-header flex items-center justify-between border-b border-line px-4 py-3">
+        <div class="chat-header glass-divider flex items-center justify-between border-b px-4 py-3">
           
           
           <div class="flex items-center gap-3">
@@ -21,21 +21,21 @@
             </div>
           </div>
 
-          <button @click="isOpen = false" class="flex h-8 w-8 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface hover:text-on-surface" aria-label="Close chat">
+          <button @click="isOpen = false" class="flex h-8 w-8 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-white/30 hover:text-on-surface dark:hover:bg-white/10" aria-label="Close chat">
             <span class="material-symbols-outlined text-lg">close</span>
           </button>
         </div>
 
         <!-- Quick Suggestions Bar -->
-        <div class="flex gap-1.5 overflow-x-auto border-b border-line px-3 py-2 custom-scrollbar">
+        <div class="glass-divider flex gap-1.5 overflow-x-auto border-b px-3 py-2 custom-scrollbar">
           <button v-for="chip in quickChips" :key="chip" @click="sendQuick(chip)"
-                  class="whitespace-nowrap rounded-full border border-line px-3 py-1 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary/40 hover:text-on-surface">
+                  class="glass-chip whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary/50 hover:text-on-surface">
             {{ chip }}
           </button>
         </div>
 
         <!-- Messages Area -->
-        <div ref="messageContainer" class="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar bg-messages">
+        <div ref="messageContainer" class="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar">
           <div v-for="(msg, index) in messages" :key="index" 
                :class="['flex flex-col', msg.role === 'user' ? 'items-end' : 'items-start']">
             <span class="bubble-label">
@@ -61,7 +61,7 @@
         </div>
 
         <!-- Input Field -->
-        <div class="chat-footer border-t border-line p-3">
+        <div class="chat-footer glass-divider border-t p-3">
           <form @submit.prevent="handleSend" class="relative group">
             <input v-model="input" 
                    type="text" 
@@ -80,17 +80,21 @@
 
     <!-- Floating Trigger FAB -->
     <button @click="isOpen = !isOpen" 
-            class="pointer-events-auto relative flex h-16 w-16 items-center justify-center rounded-full text-white transition-[transform,background-color,box-shadow] duration-300 hover:scale-105 active:scale-95 dark:text-zinc-950"
-            :class="isOpen ? 'bg-primary shadow-lg shadow-black/20' : 'bg-transparent'"
+            class="pointer-events-auto relative h-16 w-16 rounded-full transition-transform duration-300 hover:scale-105 active:scale-95"
             :aria-label="isOpen ? 'Close chat' : 'Open chat assistant'" :aria-expanded="isOpen">
 
-      <span class="absolute inset-0 transition-all duration-500"
-            :class="isOpen ? 'rotate-180 scale-0 opacity-0' : 'rotate-0 scale-100 opacity-100'">
+      <!-- The robot always stays as the button -->
+      <span class="absolute inset-0">
         <ChatBotAvatar aria-hidden="true" />
       </span>
-      <span class="material-symbols-outlined text-2xl absolute transition-transform duration-500"
-            :class="isOpen ? 'rotate-0 scale-100 opacity-100' : '-rotate-180 scale-0 opacity-0'">
-        close
+
+      <!-- Small close badge while the chat is open -->
+      <span
+        aria-hidden="true"
+        class="glass-badge absolute -right-0.5 -top-0.5 flex h-6 w-6 items-center justify-center rounded-full text-on-surface transition-all duration-300"
+        :class="isOpen ? 'scale-100 opacity-100' : 'scale-0 opacity-0'"
+      >
+        <span class="material-symbols-outlined text-[14px]">close</span>
       </span>
     </button>
   </div>
@@ -161,18 +165,57 @@ watch(isOpen, (newVal) => {
 .chat-container {
   width: min(360px, calc(100vw - 2rem));
   height: 500px;
-  max-height: calc(100vh - 120px);
+  max-height: calc(100vh - 140px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgb(var(--border-rgb));
-  border-radius: 16px;
-  background-color: rgb(var(--bg-rgb));
+  border-radius: 20px;
   color: rgb(var(--text-rgb));
+  /* Frosted glass */
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgb(var(--accent-rgb) / 0.16), transparent 60%),
+    radial-gradient(100% 70% at 100% 100%, rgb(var(--accent-rgb) / 0.12), transparent 60%),
+    rgb(255 255 255 / 0.55);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid rgb(255 255 255 / 0.6);
+  box-shadow:
+    0 24px 60px -12px rgb(15 23 42 / 0.35),
+    inset 0 1px 0 rgb(255 255 255 / 0.7);
+}
+.dark .chat-container {
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgb(var(--accent-rgb) / 0.18), transparent 60%),
+    radial-gradient(100% 70% at 100% 100%, rgb(var(--accent-rgb) / 0.12), transparent 60%),
+    rgb(24 24 27 / 0.55);
+  border-color: rgb(255 255 255 / 0.12);
+  box-shadow:
+    0 24px 60px -12px rgb(0 0 0 / 0.6),
+    inset 0 1px 0 rgb(255 255 255 / 0.08);
 }
 
-.bg-messages {
-  background-color: rgb(var(--surface-rgb));
+.glass-divider { border-color: rgb(255 255 255 / 0.45); }
+.dark .glass-divider { border-color: rgb(255 255 255 / 0.08); }
+
+.glass-chip {
+  border: 1px solid rgb(255 255 255 / 0.6);
+  background: rgb(255 255 255 / 0.4);
+}
+.dark .glass-chip {
+  border-color: rgb(255 255 255 / 0.12);
+  background: rgb(255 255 255 / 0.05);
+}
+
+.glass-badge {
+  background: rgb(255 255 255 / 0.7);
+  border: 1px solid rgb(255 255 255 / 0.8);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px -2px rgb(15 23 42 / 0.3);
+}
+.dark .glass-badge {
+  background: rgb(39 39 42 / 0.7);
+  border-color: rgb(255 255 255 / 0.15);
 }
 
 .bubble {
@@ -187,16 +230,21 @@ watch(isOpen, (newVal) => {
   background: rgb(var(--accent-rgb));
   color: #fff;
   border-top-right-radius: 4px;
+  box-shadow: 0 6px 16px -6px rgb(var(--accent-rgb) / 0.6);
 }
 .dark .bubble-user {
   color: #09090b;
 }
 
 .bubble-bot {
-  background-color: rgb(var(--bg-rgb));
+  background: rgb(255 255 255 / 0.6);
   color: rgb(var(--text-rgb));
-  border: 1px solid rgb(var(--border-rgb));
+  border: 1px solid rgb(255 255 255 / 0.7);
   border-top-left-radius: 4px;
+}
+.dark .bubble-bot {
+  background: rgb(255 255 255 / 0.06);
+  border-color: rgb(255 255 255 / 0.1);
 }
 
 .bubble-label {
@@ -209,12 +257,16 @@ watch(isOpen, (newVal) => {
 .chat-input {
   width: 100%;
   padding: 0.65rem 3rem 0.65rem 0.85rem;
-  border: 1px solid rgb(var(--border-rgb));
-  border-radius: 10px;
-  background-color: rgb(var(--bg-rgb));
+  border: 1px solid rgb(255 255 255 / 0.7);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.55);
   color: rgb(var(--text-rgb));
   font-size: 0.875rem;
   outline: none;
+}
+.dark .chat-input {
+  border-color: rgb(255 255 255 / 0.12);
+  background: rgb(255 255 255 / 0.05);
 }
 .chat-input:focus {
   border-color: rgb(var(--accent-rgb));
