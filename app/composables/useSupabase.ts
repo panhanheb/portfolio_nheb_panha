@@ -245,7 +245,9 @@ export const useSupabase = () => {
         return { projects: FALLBACK_PROJECTS, source: 'fallback' }
       }
 
-      const formattedProjects: ProjectItem[] = data.map((item: any) => ({
+      const formattedProjects: ProjectItem[] = data
+        .filter((item: any) => item.featured !== false)
+        .map((item: any) => ({
         id: item.id,
         title: item.title,
         category: item.category,

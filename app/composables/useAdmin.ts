@@ -1,0 +1,107 @@
+import type { Session } from '@supabase/supabase-js'
+import { useSupabase } from '~/composables/useSupabase'
+
+export type AdminTable = 'projects' | 'blog_posts' | 'contact_submissions' | 'chat_logs'
+
+/**
+ * Admin dashboard helpers: Supabase Auth sign-in plus simple CRUD.
+ * Writes are only allowed by the database when the signed-in email is listed in
+ * public.admin_users (see supabase_schema.sql), so hiding the page is not the security.
+ */
+export const useAdmin = () => {
+  const { getClient, isConfigured } = useSupabase()
+
+  const session = useState<Session | null>('admin-session', () => null)
+  const isAdmin = useState<boolean>('admin-is-admin', () => false)
+  const ready = useState<boolean>('admin-ready', () => false)
+
+  const client = () => {
+    const c = getClient()
+    if (!c) throw new Error('Supabase is not configured. Set NUXT_PUBLIC_SUPABASE_URL and NUXT_PUBLIC_SUPABASE_ANON_KEY.')
+    return c
+  }
+
+  const checkAdmin = async () => {
+    const { data, error } = await client().rpc('is_admin')
+    isAdmin.value = !error && data === true
+  }
+
+  let listening = false
+  const init = async () => {
+    if (!isConfigured) {
+      ready.value = true
+      return
+    }
+    const { data } = await client().auth.getSession()
+    session.value = data.session
+    if (data.session) await checkAdmin()
+    ready.value = true
+
+    if (!listening) {
+      listening = true
+      client().auth.onAuthStateChange(async (_event, s) => {
+        session.value = s
+        if (s) await checkAdmin()
+        else isAdmin.value = false
+      })
+    }
+  }
+
+  const signIn = async (email: string, password: string) => {
+    const { data, error } = await client().auth.signInWithPassword({ email, password })
+    if (error) throw error
+    session.value = data.session
+    await checkAdmin()
+  }
+
+  /** Replace the signed-in user's password (the old one is never readable, only replaceable). */
+  const changePassword = async (newPassword: string) => {
+    if (newPassword.length < 8) throw new Error('Use at least 8 characters.')
+    const { error } = await client().auth.updateUser({ password: newPassword })
+    if (error) throw error
+  }
+
+  const signOut = async () => {
+    await client().auth.signOut()
+    session.value = null
+    isAdmin.value = false
+  }
+
+  /* ---------------------------------- CRUD --------------------------------- */
+
+  const list = async <T>(table: AdminTable, orderBy = 'created_at'): Promise<T[]> => {
+    const { data, error } = await client().from(table).select('*').order(orderBy, { ascending: false })
+    if (error) throw error
+    return (data ?? []) as T[]
+  }
+
+  /** Insert when there is no id, otherwise update that row. */
+  const save = async (table: AdminTable, row: Record<string, any>) => {
+    const { id, created_at, ...fields } = row
+    const query = id
+      ? client().from(table).update(fields).eq('id', id)
+      : client().from(table).insert([fields])
+    const { error } = await query
+    if (error) throw error
+  }
+
+  const update = async (table: AdminTable, id: string, patch: Record<string, any>) => {
+    const { error } = await client().from(table).update(patch).eq('id', id)
+    if (error) throw error
+  }
+
+  const remove = async (table: AdminTable, id: string) => {
+    const { error } = await client().from(table).delete().eq('id', id)
+    if (error) throw error
+  }
+
+  const count = async (table: AdminTable, filter?: { column: string; value: string }) => {
+    let q = client().from(table).select('id', { count: 'exact', head: true })
+    if (filter) q = q.eq(filter.column, filter.value)
+    const { count: n, error } = await q
+    if (error) throw error
+    return n ?? 0
+  }
+
+  return { isConfigured, session, isAdmin, ready, init, signIn, signOut, changePassword, list, save, update, remove, count }
+}
