@@ -39,7 +39,7 @@
           :style="{ transitionDelay: `${Math.min(index, 5) * 70}ms` }"
         >
           <div class="flex items-center justify-between border-b border-line bg-surface px-6 py-5">
-            <div v-if="project.logo" class="h-12 w-12 overflow-hidden rounded-xl border border-line bg-white">
+            <div v-if="project.logo" class="h-12 w-12 overflow-hidden rounded-xl border border-line bg-zinc-950">
               <img :src="project.logo" :alt="`${project.title} logo`" class="h-full w-full object-cover" loading="lazy" width="48" height="48" />
             </div>
             <div v-else class="flex h-12 w-12 items-center justify-center rounded-xl border border-line bg-background">
@@ -103,7 +103,7 @@
             </button>
 
             <div class="flex items-center gap-4 pr-10">
-              <div v-if="activeModalProject.logo" class="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-line bg-white">
+              <div v-if="activeModalProject.logo" class="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-line bg-zinc-950">
                 <img :src="activeModalProject.logo" :alt="`${activeModalProject.title} logo`" class="h-full w-full object-cover" width="56" height="56" />
               </div>
               <div v-else class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-line bg-surface">
