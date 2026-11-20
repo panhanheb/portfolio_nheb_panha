@@ -14,6 +14,8 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     // Server-only secrets. Never put these under `public`: everything in `public` ships to the browser.
+    openaiApiKey: '',
+    openaiModel: '',
     geminiApiKey: '',
     supabaseServiceRoleKey: '',
     telegramBotToken: '',

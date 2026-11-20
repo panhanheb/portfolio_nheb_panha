@@ -30,16 +30,55 @@ export default defineEventHandler(async (event) => {
     return { responseText: "Hello! How can I help you explore Nheb Panha's portfolio today?" }
   }
 
-  // Keep requests small so a single visitor can't run up the Gemini bill.
+  // Keep requests small so a single visitor can't run up the AI bill.
   const prompt = rawPrompt.trim().slice(0, 1000)
 
   const lowerPrompt = prompt.toLowerCase()
   let finalResponse = ""
 
-  // 1. Try Live Gemini AI if API Key is configured
+  // Shared, trimmed conversation history (the client sends Gemini-style { role, parts }).
+  const safeHistory = (Array.isArray(history) ? history.slice(-12) : [])
+    .filter((m: any) => (m?.role === 'user' || m?.role === 'model') && typeof m?.parts?.[0]?.text === 'string')
+    .map((m: any) => ({ role: m.role as 'user' | 'model', text: String(m.parts[0].text).slice(0, 1000) }))
+
+  // 1. OpenAI (preferred when NUXT_OPENAI_API_KEY is set)
+  const openaiKey = ((config.openaiApiKey as string) || process.env.OPENAI_API_KEY || '').trim()
+  if (openaiKey) {
+    const configured = ((config.openaiModel as string) || '').trim()
+    const candidateModels = [...new Set([configured, 'gpt-4.1-mini', 'gpt-4o-mini'].filter(Boolean))]
+
+    for (const model of candidateModels) {
+      try {
+        const res: any = await $fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${openaiKey}` },
+          body: {
+            model,
+            max_tokens: 250,
+            temperature: 0.6,
+            messages: [
+              { role: 'system', content: SYSTEM_INSTRUCTION },
+              ...safeHistory.map(m => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.text })),
+              { role: 'user', content: prompt }
+            ]
+          },
+          timeout: 20000
+        })
+        finalResponse = res?.choices?.[0]?.message?.content?.trim() || ''
+        if (finalResponse) break
+      } catch (err: any) {
+        const status = err?.response?.status || err?.statusCode
+        console.warn(`OpenAI model ${model} failed (${status ?? 'network'}):`, err?.data?.error?.message || err?.message || err)
+        // A bad key or no credit won't be fixed by trying another model.
+        if (status === 401 || status === 429) break
+      }
+    }
+  }
+
+  // 2. Gemini (backup) if configured
   const apiKey = (config.geminiApiKey as string) || process.env.GEMINI_API_KEY || ''
 
-  if (apiKey && apiKey.trim() !== '') {
+  if (!finalResponse && apiKey && apiKey.trim() !== '') {
     try {
       const genAI = new GoogleGenerativeAI(apiKey)
       
@@ -56,10 +95,7 @@ export default defineEventHandler(async (event) => {
             systemInstruction: SYSTEM_INSTRUCTION
           })
 
-          const safeHistory = Array.isArray(history) ? history.slice(-12) : []
-          const filteredHistory = safeHistory
-            .filter((m: any) => (m?.role === 'user' || m?.role === 'model') && typeof m?.parts?.[0]?.text === 'string')
-            .map((m: any) => ({ role: m.role, parts: [{ text: String(m.parts[0].text).slice(0, 1000) }] }))
+          const filteredHistory = safeHistory.map(m => ({ role: m.role, parts: [{ text: m.text }] }))
           // Gemini requires the history to start with a user turn.
           while (filteredHistory.length && filteredHistory[0].role !== 'user') filteredHistory.shift()
 
@@ -78,7 +114,7 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // 2. Intelligent AI Context Fallback (if API Key is missing or failed)
+  // 3. Built-in answers (if no AI key is set or every AI call failed)
   if (!finalResponse) {
     if (lowerPrompt.includes('availab') || lowerPrompt.includes('hire') || lowerPrompt.includes('freelance')) {
       finalResponse = "Yes! Panha is currently open to freelance projects and full-time roles. The quickest way to reach him is the contact form on this page or email at nhebpanha78@gmail.com."
