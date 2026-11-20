@@ -22,8 +22,8 @@
           </li>
           <li class="card flex items-center gap-3 p-4">
             <span class="material-symbols-outlined text-[20px] text-on-surface-variant">send</span>
-            <a href="https://t.me/nhebpanha" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-on-surface hover:text-primary">
-              Telegram: @nhebpanha
+            <a href="https://t.me/panhanheb" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-on-surface hover:text-primary">
+              Telegram: @panhanheb
             </a>
           </li>
           <li class="card flex items-center gap-3 p-4">

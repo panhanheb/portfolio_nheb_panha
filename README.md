@@ -143,7 +143,7 @@ Add the environment variables above under **Worker → Settings → Variables an
 
 * 📧 Email: [nhebpanha78@gmail.com](mailto:nhebpanha78@gmail.com)
 * 🐙 GitHub: [github.com/panhanheb](https://github.com/panhanheb)
-* ✈️ Telegram: [@nhebpanha](https://t.me/nhebpanha)
+* ✈️ Telegram: [@panhanheb](https://t.me/panhanheb)
 * 💼 LinkedIn: https://linkedin.com/in/nhebpanha
 * 🌍 Portfolio: https://nheb-panha.vercel.app/
 
