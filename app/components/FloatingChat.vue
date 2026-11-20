@@ -13,7 +13,7 @@
               <ChatBotAvatar />
             </div>
             <div>
-              <h3 class="text-sm font-semibold text-on-surface">Ask about Panha</h3>
+              <h3 class="text-sm font-semibold text-on-surface">{{ bot.title }}</h3>
               <div class="flex items-center gap-1.5">
                 <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
                 <span class="text-xs text-on-surface-variant">AI assistant · usually instant</span>
@@ -28,7 +28,7 @@
 
         <!-- Quick Suggestions Bar -->
         <div class="glass-divider flex gap-1.5 overflow-x-auto border-b px-3 py-2 custom-scrollbar">
-          <button v-for="chip in quickChips" :key="chip" @click="sendQuick(chip)"
+          <button v-for="chip in bot.suggestions" :key="chip.label" :disabled="isTyping" @click="sendQuick(chip)"
                   class="glass-chip whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary/50 hover:text-on-surface">
             {{ chip }}
           </button>
@@ -36,7 +36,7 @@
 
         <!-- Messages Area -->
         <div ref="messageContainer" class="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar">
-          <div v-for="(msg, index) in messages" :key="index" 
+          <div v-for="(msg, index) in displayMessages" :key="index" 
                :class="['flex flex-col', msg.role === 'user' ? 'items-end' : 'items-start']">
             <span class="bubble-label">
               {{ msg.role === 'user' ? 'You' : 'Assistant' }}
@@ -101,22 +101,26 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
+import { useSiteContent } from '~/composables/useSiteContent'
 
 const isOpen = ref(false)
 const input = ref('')
 const isTyping = ref(false)
 const messageContainer = ref(null)
 
-const quickChips = ['Skills', 'Projects', 'Experience', 'Availability']
+// Title, greeting and suggestion buttons are edited in /admin -> Website -> Chatbot.
+const { content, load } = useSiteContent()
+load()
+const bot = computed(() => content.value.chatbot)
 
-const messages = ref([
-  { role: 'assistant', content: 'Hi! I can answer questions about Panha’s experience, projects and skills.' }
-])
+// The greeting is always the first bubble, so it updates when content loads.
+const messages = ref([])
+const displayMessages = computed(() => [{ role: 'assistant', content: bot.value.greeting }, ...messages.value])
 
 const sendQuick = (chip) => {
-  const questions = { Skills: 'What are Panha’s main skills?', Projects: 'What projects has Panha built?', Experience: 'What is Panha’s work experience?', Availability: 'Is Panha available for new work?' }
-  input.value = questions[chip] || chip
+  if (isTyping.value) return
+  input.value = chip.question || chip.label
   handleSend()
 }
 
@@ -130,7 +134,7 @@ const handleSend = async () => {
   scrollToBottom()
 
   try {
-    const history = messages.value.slice(0, -1).map(m => ({
+    const history = displayMessages.value.slice(0, -1).map(m => ({
       role: m.role === 'user' ? 'user' : 'model',
       parts: [{ text: m.content }]
     }))
@@ -142,7 +146,7 @@ const handleSend = async () => {
 
     messages.value.push({ role: 'assistant', content: data.responseText })
   } catch {
-    messages.value.push({ role: 'assistant', content: 'Ready to assist! Ask me anything about Panha’s portfolio.' })
+    messages.value.push({ role: 'assistant', content: 'Sorry, I couldn’t reply just now. Please try again in a moment.' })
   } finally {
     isTyping.value = false
     scrollToBottom()

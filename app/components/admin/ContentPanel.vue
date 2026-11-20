@@ -161,7 +161,51 @@
         </div>
       </div>
 
-      <p class="mt-5 text-xs text-on-surface-variant">
+      <!-- CHATBOT -->
+      <div v-if="active === 'chatbot'" class="space-y-5">
+        <div class="flex items-start gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm text-on-surface-variant">
+          <span class="material-symbols-outlined text-[20px] text-primary">auto_awesome</span>
+          <p>
+            The bot automatically knows everything on your site: profile, about, skills, experience, projects and blog posts.
+            Edit those sections and the bot picks up the changes within a minute. Use the fields below for anything extra.
+          </p>
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <label><span class="label">Chat window title</span><input v-model="form.chatbot.title" class="input" /></label>
+          <label class="flex items-center gap-3 self-end rounded-lg border border-line px-3.5 py-2.5">
+            <input v-model="form.chatbot.ai_enabled" type="checkbox" class="h-4 w-4 rounded border-line accent-primary" />
+            <span class="text-sm">
+              <span class="font-medium text-on-surface">AI replies</span>
+              <span class="block text-xs text-on-surface-variant">Off = built-in answers only (no AI cost)</span>
+            </span>
+          </label>
+        </div>
+
+        <label class="block"><span class="label">Greeting message</span><textarea v-model="form.chatbot.greeting" rows="2" class="input"></textarea></label>
+
+        <div>
+          <span class="label">Suggestion buttons</span>
+          <AdminListEditor
+            v-model="form.chatbot.suggestions"
+            :fields="[{ key: 'label', label: 'Button label' }, { key: 'question', label: 'Question it sends' }]"
+            add-label="Add suggestion"
+          />
+        </div>
+
+        <label class="block">
+          <span class="label">Extra instructions for the AI <span class="font-normal text-on-surface-variant">(optional)</span></span>
+          <textarea
+            v-model="form.chatbot.instructions"
+            rows="6"
+            class="input"
+            placeholder="e.g. My hourly rate starts at $25. I reply within 24 hours. Always mention I can work in Khmer and English. Don't discuss pricing for projects over 3 months — ask them to email me."
+          ></textarea>
+          <span class="mt-1 block text-xs text-on-surface-variant">Facts, prices, policies or tone. The AI follows these and never makes up anything else.</span>
+        </label>
+      </div>
+
+      <p v-if="active !== 'chatbot'" class="mt-5 text-xs text-on-surface-variant">
         Iconify icon names (e.g. devicon:flutter, logos:dart, mdi:web) can be found at
         <a href="https://icones.js.org" target="_blank" rel="noopener" class="underline">icones.js.org</a>.
       </p>
@@ -192,7 +236,8 @@ const sections: { key: SiteSection; label: string; icon: string; where: string }
   { key: 'about', label: 'About', icon: 'info', where: 'About section' },
   { key: 'skills', label: 'Skills', icon: 'construction', where: 'Skills section' },
   { key: 'contact', label: 'Contact', icon: 'mail', where: 'Contact section' },
-  { key: 'footer', label: 'Footer', icon: 'bottom_navigation', where: 'Footer at the bottom of every page' }
+  { key: 'footer', label: 'Footer', icon: 'bottom_navigation', where: 'Footer at the bottom of every page' },
+  { key: 'chatbot', label: 'Chatbot', icon: 'smart_toy', where: 'AI assistant in the bottom-right corner' }
 ]
 
 const iconItemFields: ListField[] = [
