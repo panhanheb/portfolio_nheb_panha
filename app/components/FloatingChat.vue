@@ -9,8 +9,8 @@
           
           
           <div class="flex items-center gap-3">
-            <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-              <span class="material-symbols-outlined text-[20px] text-primary">smart_toy</span>
+            <div class="h-10 w-10 shrink-0">
+              <ChatBotAvatar />
             </div>
             <div>
               <h3 class="text-sm font-semibold text-on-surface">Ask about Panha</h3>
@@ -80,11 +80,13 @@
 
     <!-- Floating Trigger FAB -->
     <button @click="isOpen = !isOpen" 
-            class="pointer-events-auto relative flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-black/20 transition-transform hover:scale-105 active:scale-95 dark:text-zinc-950" :aria-label="isOpen ? 'Close chat' : 'Open chat assistant'" :aria-expanded="isOpen">
-      
-      <span class="material-symbols-outlined text-2xl transition-transform duration-500"
+            class="pointer-events-auto relative flex h-16 w-16 items-center justify-center rounded-full text-white transition-[transform,background-color,box-shadow] duration-300 hover:scale-105 active:scale-95 dark:text-zinc-950"
+            :class="isOpen ? 'bg-primary shadow-lg shadow-black/20' : 'bg-transparent'"
+            :aria-label="isOpen ? 'Close chat' : 'Open chat assistant'" :aria-expanded="isOpen">
+
+      <span class="absolute inset-0 transition-all duration-500"
             :class="isOpen ? 'rotate-180 scale-0 opacity-0' : 'rotate-0 scale-100 opacity-100'">
-        forum
+        <ChatBotAvatar aria-hidden="true" />
       </span>
       <span class="material-symbols-outlined text-2xl absolute transition-transform duration-500"
             :class="isOpen ? 'rotate-0 scale-100 opacity-100' : '-rotate-180 scale-0 opacity-0'">
