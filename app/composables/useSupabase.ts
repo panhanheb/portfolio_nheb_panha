@@ -118,6 +118,7 @@ const FALLBACK_PROJECTS: ProjectItem[] = [
     category: "E-Commerce",
     description: "Native mobile shopping app for Android and iOS covering product browsing, cart and checkout.",
     icon: "logos:kotlin-icon",
+    logo: "/image/projects/e-shop-native.png",
     link: "#",
     featured: true,
     tags: [
