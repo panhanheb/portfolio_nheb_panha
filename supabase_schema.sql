@@ -236,3 +236,75 @@ VALUES
     'logos:nuxt-icon'
 )
 ON CONFLICT (slug) DO NOTHING;
+
+
+-- =====================================================================
+-- 5. WEBSITE CONTENT (edited from /admin -> Website)
+-- One JSON document per section: profile, hero, about, skills, contact, footer.
+-- Missing keys fall back to the defaults built into the site.
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS public.site_content (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.site_content ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public read access to site_content" ON public.site_content;
+CREATE POLICY "Allow public read access to site_content" ON public.site_content
+FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admins manage site content" ON public.site_content;
+CREATE POLICY "Admins manage site content" ON public.site_content
+FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+
+-- =====================================================================
+-- 6. EXPERIENCE TIMELINE (edited from /admin -> Experience)
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS public.experiences (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    period TEXT NOT NULL,
+    role TEXT NOT NULL,
+    company TEXT NOT NULL,
+    location TEXT DEFAULT '',
+    type TEXT DEFAULT 'Full-time',
+    summary TEXT DEFAULT '',
+    highlights JSONB DEFAULT '[]'::jsonb,
+    tech_stack JSONB DEFAULT '[]'::jsonb,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.experiences ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public read access to experiences" ON public.experiences;
+CREATE POLICY "Allow public read access to experiences" ON public.experiences
+FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admins manage experiences" ON public.experiences;
+CREATE POLICY "Admins manage experiences" ON public.experiences
+FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+-- Seed the timeline once (only when the table is empty).
+INSERT INTO public.experiences (period, role, company, location, type, summary, highlights, tech_stack, sort_order)
+SELECT * FROM (VALUES
+    ('2025 — Present', 'Senior Flutter & Supabase Developer', 'Cross-Platform Mobile Ecosystems', 'Phnom Penh / Remote', 'Full-time',
+     'Building high-performance Flutter mobile applications with real-time Supabase PostgreSQL synchronisation, biometric security, BLoC state isolation and offline caching.',
+     '["Engineered a FinTech mobile wallet handling real-time WebSocket transaction feeds.","Designed row-level security (RLS) policies for Supabase PostgreSQL schemas.","Optimised local Hive/Isar caching, reducing initial launch time by 38%."]'::jsonb,
+     '["Flutter","Dart","Supabase","PostgreSQL","Firebase","BLoC"]'::jsonb, 1),
+    ('2024 — 2025', 'Full-Stack Nuxt & Vue Engineer', 'Enterprise SaaS Solutions', 'Phnom Penh', 'Full-time',
+     'Developed modular server-rendered web applications in Nuxt 3 and Vue 3, with a custom design system and payment gateway integrations.',
+     '["Built responsive web portals serving over 50,000 monthly sessions with sub-second page loads.","Integrated Pinia state management with persisted storage for reliable session retention.","Created reusable design tokens and a dark/light theme system."]'::jsonb,
+     '["Nuxt 3","Vue 3","TypeScript","Tailwind CSS","Pinia","REST API"]'::jsonb, 2),
+    ('2023 — 2024', 'Backend & Database Developer', 'Cloud Infrastructure & API Services', 'Phnom Penh', 'Full-time',
+     'Built REST APIs in Laravel and Node.js with database indexing, background queue jobs and automated Telegram alerting.',
+     '["Built financial accounting API endpoints processing daily transactions within atomic database transactions.","Optimised SQL queries and compound indexes, cutting database response latency by 40%.","Integrated Telegram bot alerts for immediate production error reporting."]'::jsonb,
+     '["Laravel","Node.js","MySQL","PostgreSQL","Redis","Telegram API"]'::jsonb, 3),
+    ('2022 — 2023', 'Junior Mobile & Web Developer', 'Digital Product Innovation Lab', 'Phnom Penh', 'Full-time',
+     'Created cross-platform UI components from high-fidelity Figma designs and set up continuous integration with GitHub Actions.',
+     '["Built 15+ reusable Flutter UI widget packages following a shared design system.","Automated multi-platform builds using GitHub Actions CI/CD pipelines."]'::jsonb,
+     '["Flutter","JavaScript","HTML/CSS","Git","GitHub Actions","Figma"]'::jsonb, 4)
+) AS seed(period, role, company, location, type, summary, highlights, tech_stack, sort_order)
+WHERE NOT EXISTS (SELECT 1 FROM public.experiences);

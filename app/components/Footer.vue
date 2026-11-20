@@ -13,12 +13,12 @@
         <a href="#hero" class="flex items-center gap-3">
           <img src="/logo_test.png" alt="" class="h-12 w-12 rounded-xl bg-zinc-900 object-contain p-1.5 ring-1 ring-line" />
           <span>
-            <span class="block text-2xl font-bold tracking-tight text-on-surface">Nheb <span class="text-primary">Panha</span></span>
-            <span class="block text-sm text-on-surface-variant">Flutter &amp; Full-Stack Developer</span>
+            <span class="block text-2xl font-bold tracking-tight text-on-surface">{{ firstName }} <span class="text-primary">{{ lastName }}</span></span>
+            <span class="block text-sm text-on-surface-variant">{{ c.profile.role }}</span>
           </span>
         </a>
         <p class="mt-5 max-w-xs text-[15px] leading-relaxed text-on-surface-variant">
-          Building scalable mobile and web applications with Flutter, Nuxt, Supabase and modern technologies.
+          {{ c.footer.tagline }}
         </p>
         <ul class="mt-6 flex flex-wrap gap-3">
           <li v-for="social in socialLinks" :key="social.name">
@@ -52,7 +52,7 @@
       <div>
         <h3 class="footer-heading">Services</h3>
         <ul class="mt-6 space-y-3.5">
-          <li v-for="service in services" :key="service.name" class="flex items-center gap-3 text-[15px] text-on-surface-variant">
+          <li v-for="service in c.footer.services" :key="service.name" class="flex items-center gap-3 text-[15px] text-on-surface-variant">
             <Icon :name="service.icon" class="shrink-0 text-xl text-primary" />
             {{ service.name }}
           </li>
@@ -65,23 +65,23 @@
         <ul class="mt-6 space-y-3.5 text-[15px]">
           <li class="flex items-center gap-3 text-on-surface-variant">
             <Icon name="mdi:map-marker-outline" class="shrink-0 text-xl text-primary" />
-            Phnom Penh, Cambodia
+            {{ c.profile.location }}
           </li>
           <li>
-            <a href="mailto:nhebpanha78@gmail.com" class="flex items-center gap-3 break-all text-on-surface-variant transition-colors hover:text-primary">
+            <a :href="`mailto:${c.profile.email}`" class="flex items-center gap-3 break-all text-on-surface-variant transition-colors hover:text-primary">
               <Icon name="mdi:email-outline" class="shrink-0 text-xl text-primary" />
-              nhebpanha78@gmail.com
+              {{ c.profile.email }}
             </a>
           </li>
-          <li>
-            <a href="https://t.me/panhanheb" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 text-on-surface-variant transition-colors hover:text-primary">
+          <li v-if="c.profile.telegram">
+            <a :href="`https://t.me/${c.profile.telegram}`" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 text-on-surface-variant transition-colors hover:text-primary">
               <Icon name="mdi:telegram" class="shrink-0 text-xl text-primary" />
-              @panhanheb
+              @{{ c.profile.telegram }}
             </a>
           </li>
         </ul>
         <ul class="mt-6 flex flex-wrap gap-2">
-          <li v-for="tech in techPills" :key="tech.name" class="chip !rounded-full !bg-background !px-3 !py-1.5">
+          <li v-for="tech in c.footer.tech" :key="tech.name" class="chip !rounded-full !bg-background !px-3 !py-1.5">
             <Icon :name="tech.icon" class="text-sm" />
             {{ tech.name }}
           </li>
@@ -93,7 +93,7 @@
     <div class="border-t border-line">
       <div class="container-page flex flex-col items-center justify-between gap-5 py-6 text-sm text-on-surface-variant sm:flex-row">
         <div class="flex flex-col items-center gap-2 sm:flex-row sm:gap-4">
-          <p>&copy; {{ year }} Nheb Panha. All rights reserved.</p>
+          <p>&copy; {{ year }} {{ c.profile.name }}. All rights reserved.</p>
           <span aria-hidden="true" class="hidden h-5 w-px bg-line sm:block"></span>
           <p class="inline-flex items-center gap-1.5">
             Made with <Icon name="mdi:heart" class="text-rose-500" aria-label="love" /> in Cambodia
@@ -105,14 +105,28 @@
 </template>
 
 <script setup lang="ts">
-const year = new Date().getFullYear()
+import { computed } from 'vue'
+import { useSiteContent } from '~/composables/useSiteContent'
 
-const socialLinks = [
-  { name: 'GitHub', href: 'https://github.com/panhanheb', icon: 'mdi:github' },
-  { name: 'LinkedIn', href: 'https://linkedin.com/in/nhebpanha', icon: 'mdi:linkedin' },
-  { name: 'Telegram', href: 'https://t.me/panhanheb', icon: 'mdi:telegram' },
-  { name: 'Email', href: 'mailto:nhebpanha78@gmail.com', icon: 'mdi:email-outline' }
-]
+const year = new Date().getFullYear()
+const { content: c } = useSiteContent()
+
+// "Nheb Panha" -> "Nheb" + highlighted "Panha"
+const firstName = computed(() => c.value.profile.name.split(' ').slice(0, -1).join(' ') || c.value.profile.name)
+const lastName = computed(() => {
+  const parts = c.value.profile.name.split(' ')
+  return parts.length > 1 ? parts[parts.length - 1] : ''
+})
+
+const socialLinks = computed(() => {
+  const p = c.value.profile
+  return [
+    { name: 'GitHub', href: p.github_url, icon: 'mdi:github' },
+    { name: 'LinkedIn', href: p.linkedin_url, icon: 'mdi:linkedin' },
+    { name: 'Telegram', href: p.telegram ? `https://t.me/${p.telegram}` : '', icon: 'mdi:telegram' },
+    { name: 'Email', href: p.email ? `mailto:${p.email}` : '', icon: 'mdi:email-outline' }
+  ].filter(s => s.href)
+})
 
 const quickLinks = [
   { name: 'Home', href: '#hero' },
@@ -120,20 +134,6 @@ const quickLinks = [
   { name: 'Projects', href: '#portfolio' },
   { name: 'Blog', href: '#blog' },
   { name: 'Contact', href: '#contact' }
-]
-
-const services = [
-  { name: 'Mobile App Development', icon: 'mdi:cellphone' },
-  { name: 'Web Development', icon: 'mdi:web' },
-  { name: 'Backend & REST APIs', icon: 'mdi:code-tags' },
-  { name: 'Supabase Solutions', icon: 'mdi:cloud-outline' },
-  { name: 'Flutter Consulting', icon: 'mdi:lightning-bolt' }
-]
-
-const techPills = [
-  { name: 'Flutter', icon: 'devicon:flutter' },
-  { name: 'Supabase', icon: 'devicon:supabase' },
-  { name: 'Firebase', icon: 'devicon:firebase' }
 ]
 
 </script>

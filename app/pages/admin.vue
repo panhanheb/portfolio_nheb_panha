@@ -39,11 +39,41 @@
           <p class="mt-1 text-sm text-on-surface-variant">Sign in to manage your portfolio.</p>
         </div>
 
-        <label class="mt-7 block">
+        <!-- Step 1: email -->
+        <label v-if="step === 'email' || mode === 'password'" class="mt-7 block">
           <span class="label">Email</span>
-          <input v-model.trim="email" type="email" required autocomplete="username" class="input" />
+          <input v-model.trim="email" type="email" required autocomplete="username" class="input" placeholder="you@example.com" />
         </label>
-        <div class="mt-4">
+
+        <!-- Step 2: code from the email -->
+        <div v-if="mode === 'code' && step === 'code'" class="mt-7">
+          <div class="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-on-surface-variant">
+            <span class="material-symbols-outlined mr-1 align-[-4px] text-[18px] text-primary">mark_email_read</span>
+            We sent a sign-in code to <strong class="text-on-surface">{{ email }}</strong>. Check your inbox (and spam).
+          </div>
+          <label for="admin-code" class="label mt-5">Verification code</label>
+          <input
+            id="admin-code"
+            ref="codeInput"
+            v-model="code"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            pattern="[0-9]{6,10}"
+            maxlength="10"
+            required
+            placeholder="••••••"
+            class="input text-center font-mono !text-2xl !tracking-[0.5em]"
+            @input="code = code.replace(/\D/g, '')"
+          />
+          <div class="mt-3 flex items-center justify-between text-sm">
+            <button type="button" class="text-on-surface-variant hover:text-primary" @click="changeEmail">← Change email</button>
+            <button type="button" class="font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:text-on-surface-variant disabled:no-underline" :disabled="resendIn > 0 || signingIn" @click="requestCode">
+              {{ resendIn > 0 ? `Resend in ${resendIn}s` : 'Resend code' }}
+            </button>
+          </div>
+        </div>
+
+        <div v-if="mode === 'password'" class="mt-4">
           <label for="admin-password" class="label">Password</label>
           <div class="relative">
             <input
@@ -70,7 +100,15 @@
 
         <button type="submit" class="btn-primary mt-6 w-full" :disabled="signingIn">
           <Icon v-if="signingIn" name="mdi:loading" class="animate-spin" />
-          {{ signingIn ? 'Signing in…' : 'Sign in' }}
+          {{ submitLabel }}
+        </button>
+
+        <button
+          type="button"
+          class="mt-3 block w-full text-center text-sm text-on-surface-variant hover:text-primary"
+          @click="switchMode"
+        >
+          {{ mode === 'code' ? 'Use password instead' : 'Email me a sign-in code instead' }}
         </button>
         <NuxtLink to="/" class="mt-4 block text-center text-sm text-on-surface-variant hover:text-primary">← Back to site</NuxtLink>
       </form>
@@ -129,7 +167,7 @@
 
       <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <!-- Overview -->
-        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <button
             v-for="t in tabs"
             :key="t.key"
@@ -143,7 +181,7 @@
             <span>
               <span class="block text-2xl font-semibold leading-none text-on-surface">{{ counts[t.key] ?? '–' }}</span>
               <span class="mt-1 block text-xs text-on-surface-variant">
-                {{ t.label }}
+                {{ t.label }}<template v-if="t.key === 'website'"> sections</template>
                 <span v-if="t.key === 'messages' && unread" class="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-white dark:text-zinc-950">{{ unread }} new</span>
               </span>
             </span>
@@ -151,7 +189,9 @@
         </div>
 
         <div class="mt-8">
-          <AdminProjectsPanel v-if="tab === 'projects'" @changed="refreshCounts" />
+          <AdminContentPanel v-if="tab === 'website'" />
+          <AdminExperiencePanel v-else-if="tab === 'experience'" @changed="refreshCounts" />
+          <AdminProjectsPanel v-else-if="tab === 'projects'" @changed="refreshCounts" />
           <AdminBlogPanel v-else-if="tab === 'blog'" @changed="refreshCounts" />
           <AdminMessagesPanel v-else-if="tab === 'messages'" @changed="refreshCounts" />
           <AdminChatLogsPanel v-else />
@@ -206,7 +246,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useAdmin, type AdminTable } from '~/composables/useAdmin'
 
 definePageMeta({ layout: false })
@@ -215,21 +255,24 @@ useHead({
   meta: [{ name: 'robots', content: 'noindex, nofollow' }]
 })
 
-const { isConfigured, session, isAdmin, ready, init, signIn, signOut, changePassword, count } = useAdmin()
+const { isConfigured, session, isAdmin, ready, init, signIn, sendCode, verifyCode, signOut, changePassword, count } = useAdmin()
 
-type TabKey = 'projects' | 'blog' | 'messages' | 'chats'
-const tabs: { key: TabKey; label: string; icon: string; table: AdminTable }[] = [
+type TabKey = 'website' | 'experience' | 'projects' | 'blog' | 'messages' | 'chats'
+const tabs: { key: TabKey; label: string; icon: string; table?: AdminTable; fixed?: string }[] = [
+  { key: 'website', label: 'Website', icon: 'web', fixed: '6' },
+  { key: 'experience', label: 'Experience', icon: 'timeline', table: 'experiences' },
   { key: 'projects', label: 'Projects', icon: 'work', table: 'projects' },
   { key: 'blog', label: 'Blog posts', icon: 'article', table: 'blog_posts' },
   { key: 'messages', label: 'Messages', icon: 'mail', table: 'contact_submissions' },
   { key: 'chats', label: 'Chat logs', icon: 'forum', table: 'chat_logs' }
 ]
-const tab = ref<TabKey>('projects')
-const counts = reactive<Partial<Record<TabKey, number>>>({})
+const tab = ref<TabKey>('website')
+const counts = reactive<Partial<Record<TabKey, number | string>>>({ website: '6' })
 const unread = ref(0)
 
 const refreshCounts = async () => {
   await Promise.all(tabs.map(async t => {
+    if (!t.table) return
     try { counts[t.key] = await count(t.table) } catch { /* table may not exist yet */ }
   }))
   try { unread.value = await count('contact_submissions', { column: 'status', value: 'unread' }) } catch { /* ignore */ }
@@ -242,19 +285,91 @@ const showPassword = ref(false)
 const authError = ref('')
 const signingIn = ref(false)
 
-const handleSignIn = async () => {
+// Sign-in method: an emailed one-time code (default) or email + password.
+const mode = ref<'code' | 'password'>('code')
+const step = ref<'email' | 'code'>('email')
+const code = ref('')
+const codeInput = ref<HTMLInputElement | null>(null)
+const resendIn = ref(0)
+let resendTimer: ReturnType<typeof setInterval> | undefined
+
+const submitLabel = computed(() => {
+  if (signingIn.value) return mode.value === 'code' && step.value === 'email' ? 'Sending code…' : 'Signing in…'
+  if (mode.value === 'password') return 'Sign in'
+  return step.value === 'email' ? 'Send code' : 'Verify & sign in'
+})
+
+const friendlyAuthError = (e: any): string => {
+  const msg: string = e?.message || 'Something went wrong. Please try again.'
+  if (msg === 'Invalid login credentials') return 'Wrong email or password.'
+  if (/signups not allowed|user not found/i.test(msg)) return "There's no admin account for this email."
+  if (/expired|invalid/i.test(msg) && mode.value === 'code') return 'That code is wrong or has expired. Request a new one.'
+  if (/rate limit|security purposes|seconds/i.test(msg)) return 'Too many requests. Please wait a minute and try again.'
+  if (/failed to fetch/i.test(msg)) return "Can't reach Supabase. Check the URL and key in .env, then restart the dev server."
+  return msg
+}
+
+const startResendTimer = () => {
+  resendIn.value = 60
+  clearInterval(resendTimer)
+  resendTimer = setInterval(() => {
+    resendIn.value -= 1
+    if (resendIn.value <= 0) clearInterval(resendTimer)
+  }, 1000)
+}
+
+const requestCode = async () => {
   authError.value = ''
   signingIn.value = true
   try {
-    await signIn(email.value, password.value)
-    password.value = ''
-    showPassword.value = false
+    await sendCode(email.value)
+    step.value = 'code'
+    code.value = ''
+    startResendTimer()
+    await nextTick()
+    codeInput.value?.focus()
   } catch (e: any) {
-    authError.value = e.message === 'Invalid login credentials' ? 'Wrong email or password.' : e.message
+    authError.value = friendlyAuthError(e)
   } finally {
     signingIn.value = false
   }
 }
+
+const handleSignIn = async () => {
+  if (mode.value === 'code' && step.value === 'email') return requestCode()
+
+  authError.value = ''
+  signingIn.value = true
+  try {
+    if (mode.value === 'code') {
+      await verifyCode(email.value, code.value)
+      code.value = ''
+      step.value = 'email'
+    } else {
+      await signIn(email.value, password.value)
+      password.value = ''
+      showPassword.value = false
+    }
+  } catch (e: any) {
+    authError.value = friendlyAuthError(e)
+  } finally {
+    signingIn.value = false
+  }
+}
+
+const changeEmail = () => {
+  step.value = 'email'
+  code.value = ''
+  authError.value = ''
+}
+
+const switchMode = () => {
+  mode.value = mode.value === 'code' ? 'password' : 'code'
+  step.value = 'email'
+  authError.value = ''
+}
+
+onBeforeUnmount(() => clearInterval(resendTimer))
 
 // Change password (Supabase Auth). The current password can't be read back, only replaced.
 const passwordDialog = ref(false)

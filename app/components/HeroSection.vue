@@ -11,20 +11,18 @@
       <div class="lg:col-span-7">
         <p class="hero-in inline-flex items-center gap-2 rounded-full border border-line bg-background px-3 py-1 text-sm text-on-surface-variant" style="--d: 0ms">
           <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-          Available for freelance and full-time roles
+          {{ c.profile.availability }}
         </p>
 
         <h1 class="hero-in mt-6 text-5xl font-bold tracking-tight text-on-surface sm:text-6xl" style="--d: 60ms">
-          Nheb Panha
+          {{ c.profile.name }}
         </h1>
         <p class="hero-in mt-3 text-xl font-medium text-on-surface-variant sm:text-2xl" style="--d: 120ms">
-          Flutter &amp; Full-Stack Developer
+          {{ c.profile.role }}
         </p>
 
         <p class="hero-in mt-6 max-w-xl text-base leading-relaxed text-on-surface-variant md:text-lg" style="--d: 180ms">
-          I build cross-platform mobile apps and web platforms end to end, from the database
-          and APIs to a polished interface. I work mainly with Flutter, Nuxt, Laravel and Supabase,
-          and I bring an accounting background to products where data accuracy matters.
+          {{ c.hero.intro }}
         </p>
 
         <div class="hero-in mt-8 flex flex-wrap items-center gap-3" style="--d: 240ms">
@@ -35,14 +33,14 @@
           <a href="#contact" class="btn-secondary" @click="(e) => scrollTo('#contact', e)">
             Get in touch
           </a>
-          <a href="https://github.com/panhanheb" target="_blank" rel="noopener noreferrer"
+          <a v-if="c.profile.github_url" :href="c.profile.github_url" target="_blank" rel="noopener noreferrer"
              class="btn-secondary !px-3" aria-label="GitHub profile">
             <Icon name="mdi:github" class="text-xl" />
           </a>
         </div>
 
         <dl class="hero-in mt-12 grid max-w-lg grid-cols-3 gap-6 border-t border-line pt-6" style="--d: 300ms">
-          <div v-for="fact in facts" :key="fact.label">
+          <div v-for="fact in c.hero.facts" :key="fact.label">
             <dt class="text-xs font-medium uppercase tracking-wider text-on-surface-variant">{{ fact.label }}</dt>
             <dd class="mt-1 text-sm font-semibold text-on-surface">{{ fact.value }}</dd>
           </div>
@@ -57,8 +55,8 @@
           <div class="relative aspect-square overflow-hidden rounded-3xl border border-line bg-zinc-900 shadow-xl shadow-black/10">
             <img
               ref="photo"
-              src="/image/panha_portrait.jpg"
-              alt="Portrait of Nheb Panha"
+              :src="c.profile.portrait_url"
+              :alt="`Portrait of ${c.profile.name}`"
               width="840"
               height="840"
               fetchpriority="high"
@@ -70,9 +68,9 @@
           <div class="absolute -bottom-5 left-5 right-5 flex items-center justify-between gap-3 rounded-xl border border-line bg-background px-4 py-3 shadow-lg">
             <div class="flex items-center gap-2 text-sm">
               <span class="material-symbols-outlined text-[18px] text-on-surface-variant">location_on</span>
-              <span class="font-medium text-on-surface">Phnom Penh, Cambodia</span>
+              <span class="font-medium text-on-surface">{{ c.profile.location }}</span>
             </div>
-            <span class="font-mono text-xs text-on-surface-variant">UTC+7</span>
+            <span class="font-mono text-xs text-on-surface-variant">{{ c.profile.timezone }}</span>
           </div>
         </div>
       </div>
@@ -82,12 +80,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useSiteContent } from '~/composables/useSiteContent'
 
-const facts = [
-  { label: 'Focus', value: 'Mobile & Web' },
-  { label: 'Building since', value: '2022' },
-  { label: 'Core stack', value: 'Flutter · Nuxt' }
-]
+const { content: c } = useSiteContent()
 
 const photo = ref<HTMLImageElement | null>(null)
 const photoLoaded = ref(false)

@@ -9,11 +9,11 @@
 
       <ol class="relative mt-14 border-l border-line md:ml-[11rem]">
         <li
-          v-for="(item, index) in timelineData"
-          :key="item.id"
+          v-for="(item, index) in experiences"
+          :key="item.id || index"
           class="reveal relative pb-12 pl-8 last:pb-0 md:pl-10"
           :class="{ 'reveal-hidden': !isVisible }"
-          :style="{ transitionDelay: `${index * 90}ms` }"
+          :style="{ transitionDelay: `${Math.min(index, 6) * 90}ms` }"
         >
           <!-- Marker -->
           <span
@@ -46,7 +46,7 @@
           </ul>
 
           <div class="mt-5 flex flex-wrap gap-1.5">
-            <span v-for="t in item.techStack" :key="t" class="chip">{{ t }}</span>
+            <span v-for="t in item.tech_stack" :key="t" class="chip">{{ t }}</span>
           </div>
         </li>
       </ol>
@@ -56,69 +56,9 @@
 
 <script setup lang="ts">
 import { useScrollAnimate } from '~/composables/useScrollAnimate'
+import { useSiteContent } from '~/composables/useSiteContent'
 
 const { sectionRef, isVisible } = useScrollAnimate(0.05)
 
-// TODO: replace the company names and figures below with your real roles.
-const timelineData = [
-  {
-    id: 1,
-    period: '2025 — Present',
-    role: 'Senior Flutter & Supabase Developer',
-    company: 'Cross-Platform Mobile Ecosystems',
-    location: 'Phnom Penh / Remote',
-    type: 'Full-time',
-    summary: 'Building high-performance Flutter mobile applications with real-time Supabase PostgreSQL synchronisation, biometric security, BLoC state isolation and offline caching.',
-    highlights: [
-      'Engineered a FinTech mobile wallet handling real-time WebSocket transaction feeds.',
-      'Designed row-level security (RLS) policies for Supabase PostgreSQL schemas.',
-      'Optimised local Hive/Isar caching, reducing initial launch time by 38%.'
-    ],
-    techStack: ['Flutter', 'Dart', 'Supabase', 'PostgreSQL', 'Firebase', 'BLoC']
-  },
-  {
-    id: 2,
-    period: '2024 — 2025',
-    role: 'Full-Stack Nuxt & Vue Engineer',
-    company: 'Enterprise SaaS Solutions',
-    location: 'Phnom Penh',
-    type: 'Full-time',
-    summary: 'Developed modular server-rendered web applications in Nuxt 3 and Vue 3, with a custom design system and payment gateway integrations.',
-    highlights: [
-      'Built responsive web portals serving over 50,000 monthly sessions with sub-second page loads.',
-      'Integrated Pinia state management with persisted storage for reliable session retention.',
-      'Created reusable design tokens and a dark/light theme system.'
-    ],
-    techStack: ['Nuxt 3', 'Vue 3', 'TypeScript', 'Tailwind CSS', 'Pinia', 'REST API']
-  },
-  {
-    id: 3,
-    period: '2023 — 2024',
-    role: 'Backend & Database Developer',
-    company: 'Cloud Infrastructure & API Services',
-    location: 'Phnom Penh',
-    type: 'Full-time',
-    summary: 'Built REST APIs in Laravel and Node.js with database indexing, background queue jobs and automated Telegram alerting.',
-    highlights: [
-      'Built financial accounting API endpoints processing daily transactions within atomic database transactions.',
-      'Optimised SQL queries and compound indexes, cutting database response latency by 40%.',
-      'Integrated Telegram bot alerts for immediate production error reporting.'
-    ],
-    techStack: ['Laravel', 'Node.js', 'MySQL', 'PostgreSQL', 'Redis', 'Telegram API']
-  },
-  {
-    id: 4,
-    period: '2022 — 2023',
-    role: 'Junior Mobile & Web Developer',
-    company: 'Digital Product Innovation Lab',
-    location: 'Phnom Penh',
-    type: 'Full-time',
-    summary: 'Created cross-platform UI components from high-fidelity Figma designs and set up continuous integration with GitHub Actions.',
-    highlights: [
-      'Built 15+ reusable Flutter UI widget packages following a shared design system.',
-      'Automated multi-platform builds using GitHub Actions CI/CD pipelines.'
-    ],
-    techStack: ['Flutter', 'JavaScript', 'HTML/CSS', 'Git', 'GitHub Actions', 'Figma']
-  }
-]
+const { experiences } = useSiteContent()
 </script>

@@ -1,7 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { useSupabase } from '~/composables/useSupabase'
 
-export type AdminTable = 'projects' | 'blog_posts' | 'contact_submissions' | 'chat_logs'
+export type AdminTable = 'projects' | 'blog_posts' | 'contact_submissions' | 'chat_logs' | 'experiences'
 
 /**
  * Admin dashboard helpers: Supabase Auth sign-in plus simple CRUD.
@@ -54,6 +54,24 @@ export const useAdmin = () => {
     await checkAdmin()
   }
 
+  /**
+   * Passwordless sign-in, step 1: email a one-time code.
+   * shouldCreateUser: false -> only existing users (added in Supabase -> Authentication) get a code,
+   * so nobody can create an account from the login page.
+   */
+  const sendCode = async (email: string) => {
+    const { error } = await client().auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
+    if (error) throw error
+  }
+
+  /** Passwordless sign-in, step 2: check the code from the email. */
+  const verifyCode = async (email: string, token: string) => {
+    const { data, error } = await client().auth.verifyOtp({ email, token, type: 'email' })
+    if (error) throw error
+    session.value = data.session
+    await checkAdmin()
+  }
+
   /** Replace the signed-in user's password (the old one is never readable, only replaceable). */
   const changePassword = async (newPassword: string) => {
     if (newPassword.length < 8) throw new Error('Use at least 8 characters.')
@@ -95,6 +113,19 @@ export const useAdmin = () => {
     if (error) throw error
   }
 
+  /** Website sections (site_content table): read all saved sections, or save one. */
+  const getContent = async () => {
+    const { data, error } = await client().from('site_content').select('key, value, updated_at')
+    if (error) throw error
+    return data ?? []
+  }
+  const saveContent = async (key: string, value: unknown) => {
+    const { error } = await client()
+      .from('site_content')
+      .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+    if (error) throw error
+  }
+
   const count = async (table: AdminTable, filter?: { column: string; value: string }) => {
     let q = client().from(table).select('id', { count: 'exact', head: true })
     if (filter) q = q.eq(filter.column, filter.value)
@@ -103,5 +134,5 @@ export const useAdmin = () => {
     return n ?? 0
   }
 
-  return { isConfigured, session, isAdmin, ready, init, signIn, signOut, changePassword, list, save, update, remove, count }
+  return { isConfigured, session, isAdmin, ready, init, signIn, sendCode, verifyCode, signOut, changePassword, getContent, saveContent, list, save, update, remove, count }
 }

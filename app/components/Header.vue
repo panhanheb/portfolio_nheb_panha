@@ -9,7 +9,7 @@
       <!-- Logo -->
       <a href="#hero" class="flex items-center gap-2.5" @click="(e) => scrollToSection(e, '#hero')">
         <img src="/logo_test.png" alt="" class="h-8 w-8 rounded-lg bg-zinc-900 object-contain p-1 ring-1 ring-line" />
-        <span class="text-[15px] font-semibold tracking-tight text-on-surface">Nheb Panha</span>
+        <span class="text-[15px] font-semibold tracking-tight text-on-surface">{{ siteContent.profile.name }}</span>
       </a>
 
       <!-- Desktop links -->
@@ -78,6 +78,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useSiteContent } from '~/composables/useSiteContent'
+
+const { content: siteContent } = useSiteContent()
 
 const navLinks = [
   { name: 'About', href: '#about' },

@@ -5,8 +5,8 @@
       <div class="reveal lg:col-span-5" :class="{ 'reveal-hidden': !contactVisible }">
         <SectionHeading
           eyebrow="Contact"
-          title="Let's work together"
-          lead="Have a mobile app, web platform or backend project in mind? Send me a message and I'll get back to you within one or two working days."
+          :title="c.contact.title"
+          :lead="c.contact.lead"
         />
 
         <ul class="mt-10 space-y-3">
@@ -20,15 +20,15 @@
               {{ copied ? 'Copied' : 'Copy' }}
             </button>
           </li>
-          <li class="card flex items-center gap-3 p-4">
+          <li v-if="c.profile.telegram" class="card flex items-center gap-3 p-4">
             <span class="material-symbols-outlined text-[20px] text-on-surface-variant">send</span>
-            <a href="https://t.me/panhanheb" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-on-surface hover:text-primary">
-              Telegram: @panhanheb
+            <a :href="`https://t.me/${c.profile.telegram}`" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-on-surface hover:text-primary">
+              Telegram: @{{ c.profile.telegram }}
             </a>
           </li>
           <li class="card flex items-center gap-3 p-4">
             <span class="material-symbols-outlined text-[20px] text-on-surface-variant">location_on</span>
-            <span class="text-sm font-medium text-on-surface">Phnom Penh, Cambodia <span class="font-normal text-on-surface-variant">(UTC+7)</span></span>
+            <span class="text-sm font-medium text-on-surface">{{ c.profile.location }} <span class="font-normal text-on-surface-variant">({{ c.profile.timezone }})</span></span>
           </li>
         </ul>
       </div>
@@ -85,12 +85,14 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, computed } from 'vue'
+import { useSiteContent } from '~/composables/useSiteContent'
 import { useScrollAnimate } from '~/composables/useScrollAnimate'
 
 const { sectionRef: contactRef, isVisible: contactVisible } = useScrollAnimate(0.1)
 
-const email = 'nhebpanha78@gmail.com'
+const { content: c } = useSiteContent()
+const email = computed(() => c.value.profile.email)
 
 const form = reactive({
   name: '',
@@ -106,11 +108,11 @@ const copied = ref(false)
 
 const copyEmail = async () => {
   try {
-    await navigator.clipboard.writeText(email)
+    await navigator.clipboard.writeText(email.value)
     copied.value = true
     setTimeout(() => { copied.value = false }, 2000)
   } catch {
-    window.location.href = `mailto:${email}`
+    window.location.href = `mailto:${email.value}`
   }
 }
 
