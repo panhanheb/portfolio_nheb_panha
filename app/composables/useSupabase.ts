@@ -6,6 +6,7 @@ export interface ProjectItem {
   category: string
   description: string
   icon: string
+  logo?: string
   link: string
   github_url?: string
   demo_url?: string
@@ -75,6 +76,7 @@ const FALLBACK_PROJECTS: ProjectItem[] = [
     category: "E-Commerce",
     description: "Customer shopping app for the RED ANT Express e-commerce platform: browse products, add them to the cart, check out and track orders through to delivery.",
     icon: "devicon:flutter",
+    logo: "/image/projects/red-ant-express.png",
     link: "#",
     featured: true,
     tags: [
@@ -88,6 +90,7 @@ const FALLBACK_PROJECTS: ProjectItem[] = [
     category: "Merchant App",
     description: "Seller app for RED ANT Express that lets merchants manage their products and incoming orders, and prepare each order for delivery.",
     icon: "devicon:flutter",
+    logo: "/image/projects/red-ant-merchant.png",
     link: "#",
     featured: true,
     tags: [
@@ -101,6 +104,7 @@ const FALLBACK_PROJECTS: ProjectItem[] = [
     category: "Delivery App",
     description: "Driver app for RED ANT Express for accepting delivery jobs, picking up orders from merchants and updating each order through to drop-off.",
     icon: "devicon:flutter",
+    logo: "/image/projects/red-ant-driver.png",
     link: "#",
     featured: true,
     tags: [
@@ -246,6 +250,7 @@ export const useSupabase = () => {
         category: item.category,
         description: item.description,
         icon: item.icon || 'devicon:flutter',
+        logo: item.logo || FALLBACK_PROJECTS.find(p => p.title === item.title)?.logo,
         link: item.link || '#',
         github_url: item.github_url || undefined,
         demo_url: item.demo_url || undefined,
