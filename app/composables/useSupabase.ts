@@ -29,6 +29,7 @@ export interface BlogPost {
   author: string
   tags: string[]
   icon: string
+  cover_image?: string
 }
 
 export interface ContactSubmission {
@@ -296,7 +297,8 @@ export const useSupabase = () => {
         published_at: item.published_at || 'Jul 2025',
         author: item.author || 'Nheb Panha',
         tags: Array.isArray(item.tags) ? item.tags : (typeof item.tags === 'string' ? JSON.parse(item.tags) : []),
-        icon: item.icon || 'devicon:flutter'
+        icon: item.icon || 'devicon:flutter',
+        cover_image: item.cover_image || undefined
       }))
 
       return { posts: formattedPosts, source: 'supabase' }

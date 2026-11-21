@@ -308,3 +308,34 @@ SELECT * FROM (VALUES
      '["Flutter","JavaScript","HTML/CSS","Git","GitHub Actions","Figma"]'::jsonb, 4)
 ) AS seed(period, role, company, location, type, summary, highlights, tech_stack, sort_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.experiences);
+
+
+-- =====================================================================
+-- 7. IMAGE UPLOADS (Supabase Storage bucket "media", used by /admin)
+-- Anyone can view images; only admins can upload, replace or delete them.
+-- =====================================================================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('media', 'media', true, 5242880, ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif'])
+ON CONFLICT (id) DO UPDATE
+SET public = true,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DROP POLICY IF EXISTS "Public read media" ON storage.objects;
+CREATE POLICY "Public read media" ON storage.objects
+FOR SELECT USING (bucket_id = 'media');
+
+DROP POLICY IF EXISTS "Admins upload media" ON storage.objects;
+CREATE POLICY "Admins upload media" ON storage.objects
+FOR INSERT TO authenticated WITH CHECK (bucket_id = 'media' AND public.is_admin());
+
+DROP POLICY IF EXISTS "Admins update media" ON storage.objects;
+CREATE POLICY "Admins update media" ON storage.objects
+FOR UPDATE TO authenticated USING (bucket_id = 'media' AND public.is_admin());
+
+DROP POLICY IF EXISTS "Admins delete media" ON storage.objects;
+CREATE POLICY "Admins delete media" ON storage.objects
+FOR DELETE TO authenticated USING (bucket_id = 'media' AND public.is_admin());
+
+-- Cover image for blog posts
+ALTER TABLE public.blog_posts ADD COLUMN IF NOT EXISTS cover_image TEXT;

@@ -20,8 +20,9 @@
 
     <ul v-else class="mt-6 grid gap-3">
       <li v-for="p in rows" :key="p.id" class="card flex flex-wrap items-center gap-4 p-4">
-        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-line bg-background">
-          <Icon :name="p.icon || 'logos:flutter'" class="text-2xl" />
+        <div class="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-background">
+          <img v-if="p.cover_image" :src="p.cover_image" alt="" class="h-full w-full object-cover" />
+          <Icon v-else :name="p.icon || 'logos:flutter'" class="text-2xl" />
         </div>
         <div class="min-w-0 flex-1">
           <div class="flex flex-wrap items-center gap-2">
@@ -60,10 +61,40 @@
           <span class="label">Summary *</span>
           <textarea v-model.trim="form.summary" required rows="2" class="input"></textarea>
         </label>
-        <label class="sm:col-span-2">
-          <span class="label">Content * <span class="font-normal text-on-surface-variant">(use ### for headings)</span></span>
-          <textarea v-model="form.content" required rows="10" class="input font-mono !text-[13px]"></textarea>
-        </label>
+        <div class="sm:col-span-2">
+          <span class="label">Cover image <span class="font-normal text-on-surface-variant">(shown on the card and at the top of the post)</span></span>
+          <AdminImageUpload v-model="form.cover_image" folder="blog" />
+        </div>
+
+        <div class="sm:col-span-2">
+          <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+            <label for="post-content" class="label !mb-0">
+              Content * <span class="font-normal text-on-surface-variant">(### for headings, blank line between paragraphs)</span>
+            </label>
+            <button type="button" class="btn-secondary !px-2.5 !py-1.5 !text-xs" :disabled="inserting" @click="contentFile?.click()">
+              <Icon v-if="inserting" name="mdi:loading" class="animate-spin" />
+              <span v-else class="material-symbols-outlined text-[16px]">image</span>
+              {{ inserting ? 'Uploading…' : 'Insert image' }}
+            </button>
+            <input ref="contentFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" class="hidden" @change="insertImage" />
+          </div>
+          <textarea
+            id="post-content"
+            ref="contentArea"
+            v-model="form.content"
+            required
+            rows="12"
+            class="input font-mono !text-[13px]"
+            @dragover.prevent
+            @drop.prevent="onContentDrop"
+            @paste="onContentPaste"
+          ></textarea>
+          <p class="mt-1 text-xs text-on-surface-variant">
+            Tip: drag an image into the text, or paste one, to upload it at the cursor. Images appear as
+            <code class="font-mono">![description](link)</code> on their own line.
+          </p>
+          <p v-if="insertError" class="mt-1 text-sm text-rose-600 dark:text-rose-400">{{ insertError }}</p>
+        </div>
         <label>
           <span class="label">Published</span>
           <input v-model.trim="form.published_at" class="input" placeholder="Jul 2025" />
@@ -117,10 +148,50 @@ interface PostRow {
   author: string
   tags: string[]
   icon: string
+  cover_image: string
 }
 
 const emit = defineEmits<{ changed: [] }>()
-const { list, save, remove } = useAdmin()
+const { list, save, remove, uploadImage } = useAdmin()
+
+/* ----------------------- Images inside the post content ----------------------- */
+const contentArea = ref<HTMLTextAreaElement | null>(null)
+const contentFile = ref<HTMLInputElement | null>(null)
+const inserting = ref(false)
+const insertError = ref('')
+
+/** Upload, then put ![alt](url) on its own paragraph at the cursor. */
+const uploadIntoContent = async (file?: File | null) => {
+  if (!file || !form.value) return
+  insertError.value = ''
+  inserting.value = true
+  const area = contentArea.value
+  const pos = area?.selectionStart ?? form.value.content.length
+  try {
+    const url = await uploadImage(file, 'blog/content')
+    const alt = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim() || 'image'
+    const text = form.value.content
+    const before = text.slice(0, pos).replace(/\s*$/, '')
+    const after = text.slice(pos).replace(/^\s*/, '')
+    const snippet = `![${alt}](${url})`
+    form.value.content = [before, snippet, after].filter(Boolean).join('\n\n')
+  } catch (e: any) {
+    insertError.value = e.message
+  } finally {
+    inserting.value = false
+    if (contentFile.value) contentFile.value.value = ''
+  }
+}
+
+const insertImage = (e: Event) => uploadIntoContent((e.target as HTMLInputElement).files?.[0])
+const onContentDrop = (e: DragEvent) => uploadIntoContent(e.dataTransfer?.files?.[0])
+const onContentPaste = (e: ClipboardEvent) => {
+  const file = [...(e.clipboardData?.files ?? [])].find(f => f.type.startsWith('image/'))
+  if (file) {
+    e.preventDefault()
+    uploadIntoContent(file)
+  }
+}
 
 const rows = ref<PostRow[]>([])
 const loading = ref(true)
@@ -151,7 +222,7 @@ const load = async () => {
   loading.value = true
   try {
     const data = await list<any>('blog_posts')
-    rows.value = data.map(r => ({ ...r, tags: Array.isArray(r.tags) ? r.tags : [] }))
+    rows.value = data.map(r => ({ ...r, cover_image: r.cover_image || '', tags: Array.isArray(r.tags) ? r.tags : [] }))
   } catch (e: any) {
     flash(false, e.message)
   } finally {
@@ -163,10 +234,11 @@ const today = () => new Date().toLocaleDateString('en-US', { month: 'short', yea
 
 const openEditor = (row?: PostRow) => {
   formError.value = ''
+  insertError.value = ''
   slugTouched.value = !!row
   form.value = row
     ? JSON.parse(JSON.stringify(row))
-    : { title: '', slug: '', category: '', summary: '', content: '', read_time: '5 min read', published_at: today(), author: 'Nheb Panha', tags: [], icon: 'logos:flutter' }
+    : { title: '', slug: '', category: '', summary: '', content: '', read_time: '5 min read', published_at: today(), author: 'Nheb Panha', tags: [], icon: 'logos:flutter', cover_image: '' }
   tagsText.value = form.value!.tags.join(', ')
 }
 
@@ -187,6 +259,7 @@ const submit = async () => {
       published_at: f.published_at || today(),
       author: f.author || 'Nheb Panha',
       icon: f.icon || 'logos:flutter',
+      cover_image: f.cover_image || null,
       tags: tagsText.value.split(',').map(t => t.trim()).filter(Boolean)
     })
     form.value = null

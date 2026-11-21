@@ -60,7 +60,14 @@ export const useAdmin = () => {
    * so nobody can create an account from the login page.
    */
   const sendCode = async (email: string) => {
-    const { error } = await client().auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
+    const { error } = await client().auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false,
+        // If the email contains a link instead of a code, clicking it signs in and lands on /admin.
+        emailRedirectTo: `${window.location.origin}/admin`
+      }
+    })
     if (error) throw error
   }
 
@@ -113,6 +120,29 @@ export const useAdmin = () => {
     if (error) throw error
   }
 
+  /**
+   * Upload an image to the public "media" bucket and return its public URL.
+   * folder: e.g. 'blog', 'blog/content', 'projects'.
+   */
+  const uploadImage = async (file: File, folder = 'uploads'): Promise<string> => {
+    const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif']
+    if (!allowed.includes(file.type)) throw new Error('Please choose a PNG, JPG, WebP, GIF or AVIF image.')
+    if (file.size > 5 * 1024 * 1024) throw new Error(`That image is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is 5 MB.`)
+
+    const ext = (file.name.split('.').pop() || file.type.split('/')[1] || 'jpg').toLowerCase()
+    const base = file.name.replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'image'
+    const path = `${folder}/${Date.now()}-${base}.${ext}`
+
+    const storage = client().storage.from('media')
+    const { error } = await storage.upload(path, file, { cacheControl: '31536000', contentType: file.type, upsert: false })
+    if (error) {
+      if (/bucket not found/i.test(error.message)) throw new Error('The "media" storage bucket is missing. Run the latest supabase_schema.sql in Supabase.')
+      if (/row-level security|unauthorized|not allowed/i.test(error.message)) throw new Error('Upload blocked: only admins can upload. Run the latest supabase_schema.sql and sign in again.')
+      throw error
+    }
+    return storage.getPublicUrl(path).data.publicUrl
+  }
+
   /** Website sections (site_content table): read all saved sections, or save one. */
   const getContent = async () => {
     const { data, error } = await client().from('site_content').select('key, value, updated_at')
@@ -134,5 +164,5 @@ export const useAdmin = () => {
     return n ?? 0
   }
 
-  return { isConfigured, session, isAdmin, ready, init, signIn, sendCode, verifyCode, signOut, changePassword, getContent, saveContent, list, save, update, remove, count }
+  return { isConfigured, session, isAdmin, ready, init, signIn, sendCode, verifyCode, signOut, changePassword, getContent, saveContent, uploadImage, list, save, update, remove, count }
 }

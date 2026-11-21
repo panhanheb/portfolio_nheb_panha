@@ -93,8 +93,9 @@
             <div class="flex items-start gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm">
               <span class="material-symbols-outlined text-[20px] text-primary">mark_email_read</span>
               <p class="text-on-surface-variant">
-                Code sent to <strong class="font-medium text-on-surface">{{ email }}</strong>.
-                Check your inbox and spam folder.
+                Email sent to <strong class="font-medium text-on-surface">{{ email }}</strong>.
+                Enter the code from it below, <span class="text-on-surface">or just click the sign-in link</span> in the email.
+                Check spam if you don't see it.
               </p>
             </div>
             <label for="admin-code" class="label mt-5">Verification code</label>
