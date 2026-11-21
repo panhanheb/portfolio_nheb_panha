@@ -1,7 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { useSupabase } from '~/composables/useSupabase'
 
-export type AdminTable = 'projects' | 'blog_posts' | 'contact_submissions' | 'chat_logs' | 'experiences'
+export type AdminTable = 'projects' | 'blog_posts' | 'contact_submissions' | 'chat_logs' | 'chat_replies' | 'experiences'
 
 /**
  * Admin dashboard helpers: Supabase Auth sign-in plus simple CRUD.
@@ -120,6 +120,12 @@ export const useAdmin = () => {
     if (error) throw error
   }
 
+  /** Delete every row where column = value (e.g. a whole chat conversation). */
+  const removeWhere = async (table: AdminTable, column: string, value: string) => {
+    const { error } = await client().from(table).delete().eq(column, value)
+    if (error) throw error
+  }
+
   /**
    * Upload an image to the public "media" bucket and return its public URL.
    * folder: e.g. 'blog', 'blog/content', 'projects'.
@@ -164,5 +170,5 @@ export const useAdmin = () => {
     return n ?? 0
   }
 
-  return { isConfigured, session, isAdmin, ready, init, signIn, sendCode, verifyCode, signOut, changePassword, getContent, saveContent, uploadImage, list, save, update, remove, count }
+  return { isConfigured, session, isAdmin, ready, init, signIn, sendCode, verifyCode, signOut, changePassword, getContent, saveContent, uploadImage, list, save, update, remove, removeWhere, count }
 }

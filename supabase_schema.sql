@@ -339,3 +339,48 @@ FOR DELETE TO authenticated USING (bucket_id = 'media' AND public.is_admin());
 
 -- Cover image for blog posts
 ALTER TABLE public.blog_posts ADD COLUMN IF NOT EXISTS cover_image TEXT;
+
+
+-- =====================================================================
+-- 8. LIVE REPLIES TO CHATBOT CONVERSATIONS (/admin -> Chat logs)
+-- Each visitor's chat has a random session_id stored in their browser.
+-- Admins reply in /admin; the visitor's chat window fetches replies for
+-- its own session_id only (via get_chat_replies), so nobody can read others'.
+-- =====================================================================
+ALTER TABLE public.chat_logs ADD COLUMN IF NOT EXISTS session_id TEXT;
+CREATE INDEX IF NOT EXISTS chat_logs_session_idx ON public.chat_logs (session_id, created_at);
+
+CREATE TABLE IF NOT EXISTS public.chat_replies (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS chat_replies_session_idx ON public.chat_replies (session_id, created_at);
+
+-- RLS on: only admins can read/write the table directly.
+ALTER TABLE public.chat_replies ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins manage chat replies" ON public.chat_replies;
+CREATE POLICY "Admins manage chat replies" ON public.chat_replies
+FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+-- Visitors fetch replies for their own (unguessable) session id only.
+CREATE OR REPLACE FUNCTION public.get_chat_replies(p_session TEXT, p_since TIMESTAMPTZ DEFAULT '1970-01-01')
+RETURNS TABLE (id UUID, message TEXT, created_at TIMESTAMPTZ)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT r.id, r.message, r.created_at
+    FROM public.chat_replies r
+    WHERE length(p_session) >= 20
+      AND r.session_id = p_session
+      AND r.created_at > p_since
+    ORDER BY r.created_at
+    LIMIT 50;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_chat_replies(TEXT, TIMESTAMPTZ) FROM public;
+GRANT EXECUTE ON FUNCTION public.get_chat_replies(TEXT, TIMESTAMPTZ) TO anon, authenticated;

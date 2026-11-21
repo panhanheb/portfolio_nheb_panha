@@ -459,7 +459,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
     title: 'Inbox',
     items: [
       { key: 'messages', label: 'Messages', icon: 'mail', table: 'contact_submissions' },
-      { key: 'chats', label: 'Chat logs', icon: 'forum', table: 'chat_logs' }
+      { key: 'chats', label: 'Chatbot inbox', icon: 'forum', table: 'chat_logs' }
     ]
   }
 ]

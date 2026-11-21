@@ -13,6 +13,8 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const rawPrompt = body?.prompt
   const history = body?.history
+  // Anonymous per-browser chat id, so admin replies reach the right visitor.
+  const sessionId = typeof body?.sessionId === 'string' && /^[A-Za-z0-9-]{20,64}$/.test(body.sessionId) ? body.sessionId : null
 
   const ctx = await getPortfolioContext(event)
 
@@ -106,7 +108,7 @@ export default defineEventHandler(async (event) => {
     try {
       createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })
         .from('chat_logs')
-        .insert([{ user_prompt: prompt, bot_response: finalResponse }])
+        .insert([{ user_prompt: prompt, bot_response: finalResponse, session_id: sessionId }])
         .then(({ error }) => { if (error) console.warn('Supabase chat_logs insert:', error.message) })
     } catch {
       /* ignore logging errors */

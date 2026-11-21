@@ -16,7 +16,7 @@
               <h3 class="text-sm font-semibold text-on-surface">{{ bot.title }}</h3>
               <div class="flex items-center gap-1.5">
                 <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                <span class="text-xs text-on-surface-variant">AI assistant · usually instant</span>
+                <span class="text-xs text-on-surface-variant">{{ hasAdminReply ? `AI assistant · ${ownerName} is here too` : 'AI assistant · usually instant' }}</span>
               </div>
             </div>
           </div>
@@ -30,20 +30,25 @@
         <div class="glass-divider flex gap-1.5 overflow-x-auto border-b px-3 py-2 custom-scrollbar">
           <button v-for="chip in bot.suggestions" :key="chip.label" :disabled="isTyping" @click="sendQuick(chip)"
                   class="glass-chip whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary/50 hover:text-on-surface">
-            {{ chip }}
+            {{ chip.label }}
           </button>
         </div>
 
         <!-- Messages Area -->
         <div ref="messageContainer" class="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar">
-          <div v-for="(msg, index) in displayMessages" :key="index" 
+          <div v-for="(msg, index) in displayMessages" :key="msg.id || index"
                :class="['flex flex-col', msg.role === 'user' ? 'items-end' : 'items-start']">
-            <span class="bubble-label">
+            <span v-if="msg.role === 'admin'" class="bubble-label inline-flex items-center gap-1.5">
+              <img src="/image/panha_avatar.jpg" alt="" class="h-4 w-4 rounded-full object-cover" />
+              {{ ownerName }}
+              <span class="rounded-full bg-emerald-500/15 px-1.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">Live</span>
+            </span>
+            <span v-else class="bubble-label">
               {{ msg.role === 'user' ? 'You' : 'Assistant' }}
             </span>
             <div :class="[
-              'bubble text-xs leading-relaxed shadow-sm',
-              msg.role === 'user' ? 'bubble-user' : 'bubble-bot'
+              'bubble text-xs leading-relaxed shadow-sm whitespace-pre-line',
+              msg.role === 'user' ? 'bubble-user' : msg.role === 'admin' ? 'bubble-admin' : 'bubble-bot'
             ]">
               {{ msg.content }}
             </div>
@@ -88,6 +93,13 @@
         <ChatBotAvatar aria-hidden="true" />
       </span>
 
+      <!-- New replies from the owner while the chat is closed -->
+      <span
+        v-if="!isOpen && unreadReplies"
+        class="absolute -right-0.5 -top-0.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-bold text-white shadow-lg ring-2 ring-background"
+        :aria-label="`${unreadReplies} new message${unreadReplies > 1 ? 's' : ''}`"
+      >{{ unreadReplies }}</span>
+
       <!-- Small close badge while the chat is open -->
       <span
         aria-hidden="true"
@@ -101,8 +113,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useSiteContent } from '~/composables/useSiteContent'
+import { useSupabase } from '~/composables/useSupabase'
 
 const isOpen = ref(false)
 const input = ref('')
@@ -113,10 +126,80 @@ const messageContainer = ref(null)
 const { content, load } = useSiteContent()
 load()
 const bot = computed(() => content.value.chatbot)
+const ownerName = computed(() => content.value.profile.name.trim().split(/\s+/).pop() || 'Owner')
 
 // The greeting is always the first bubble, so it updates when content loads.
+// Roles: user (visitor), assistant (AI/bot), admin (live reply from the owner).
 const messages = ref([])
 const displayMessages = computed(() => [{ role: 'assistant', content: bot.value.greeting }, ...messages.value])
+const hasAdminReply = computed(() => messages.value.some(m => m.role === 'admin'))
+
+/* -------- Conversation memory + live replies from the owner (/admin) -------- */
+const STORAGE_KEY = 'portfolio-chat-v1'
+const sessionId = ref('')
+const lastReplyAt = ref('1970-01-01T00:00:00Z')
+const unreadReplies = ref(0)
+const { getClient } = useSupabase()
+let pollTimer
+
+const save = () => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      sessionId: sessionId.value,
+      lastReplyAt: lastReplyAt.value,
+      messages: messages.value.slice(-60)
+    }))
+  } catch { /* storage unavailable: chat still works for this page view */ }
+}
+
+const restore = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')
+    if (saved?.sessionId) sessionId.value = saved.sessionId
+    if (saved?.lastReplyAt) lastReplyAt.value = saved.lastReplyAt
+    if (Array.isArray(saved?.messages)) messages.value = saved.messages
+  } catch { /* ignore */ }
+  if (!sessionId.value) {
+    sessionId.value = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`)
+  }
+}
+
+// Ask Supabase for new replies to this visitor's session (only after they've said something).
+const checkReplies = async () => {
+  if (!messages.value.some(m => m.role === 'user')) return
+  const client = getClient()
+  if (!client) return
+  try {
+    const { data, error } = await client.rpc('get_chat_replies', { p_session: sessionId.value, p_since: lastReplyAt.value })
+    if (error || !data?.length) return
+    const known = new Set(messages.value.filter(m => m.id).map(m => m.id))
+    const fresh = data.filter(r => !known.has(r.id))
+    if (!fresh.length) return
+    for (const r of fresh) messages.value.push({ role: 'admin', content: r.message, id: r.id, at: r.created_at })
+    lastReplyAt.value = data[data.length - 1].created_at
+    if (!isOpen.value) unreadReplies.value += fresh.length
+    save()
+    scrollToBottom()
+  } catch { /* offline: try again next round */ }
+}
+
+// Check more often while the chat is open.
+const schedulePolling = () => {
+  clearInterval(pollTimer)
+  pollTimer = setInterval(checkReplies, isOpen.value ? 8000 : 30000)
+}
+
+onMounted(() => {
+  restore()
+  checkReplies()
+  schedulePolling()
+  document.addEventListener('visibilitychange', onVisible)
+})
+onBeforeUnmount(() => {
+  clearInterval(pollTimer)
+  document.removeEventListener('visibilitychange', onVisible)
+})
+const onVisible = () => { if (document.visibilityState === 'visible') checkReplies() }
 
 const sendQuick = (chip) => {
   if (isTyping.value) return
@@ -141,7 +224,7 @@ const handleSend = async () => {
 
     const data = await $fetch('/api/chat', {
       method: 'POST',
-      body: { prompt, history }
+      body: { prompt, history, sessionId: sessionId.value }
     })
 
     messages.value.push({ role: 'assistant', content: data.responseText })
@@ -149,6 +232,7 @@ const handleSend = async () => {
     messages.value.push({ role: 'assistant', content: 'Sorry, I couldn’t reply just now. Please try again in a moment.' })
   } finally {
     isTyping.value = false
+    save()
     scrollToBottom()
   }
 }
@@ -160,8 +244,13 @@ const scrollToBottom = async () => {
   }
 }
 
-watch(isOpen, (newVal) => {
-  if (newVal) scrollToBottom()
+watch(isOpen, (open) => {
+  if (open) {
+    unreadReplies.value = 0
+    scrollToBottom()
+    checkReplies()
+  }
+  schedulePolling()
 })
 </script>
 
@@ -249,6 +338,14 @@ watch(isOpen, (newVal) => {
 .dark .bubble-bot {
   background: rgb(255 255 255 / 0.06);
   border-color: rgb(255 255 255 / 0.1);
+}
+
+/* Live reply from the owner: green tint so it stands out from the AI. */
+.bubble-admin {
+  background: rgb(16 185 129 / 0.12);
+  color: rgb(var(--text-rgb));
+  border: 1px solid rgb(16 185 129 / 0.35);
+  border-top-left-radius: 4px;
 }
 
 .bubble-label {
